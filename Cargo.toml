@@ -1,0 +1,11 @@
+[package]
+name = "kfme"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.91"
+byteorder = "1.5.0"
+clap = { version = "4.5.20", features = ["derive"] }
+serde = { version = "1.0.213", features = ["derive"] }
+serde_yaml = "0.9"
