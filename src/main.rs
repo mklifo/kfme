@@ -164,7 +164,7 @@ fn on_add_tran(m_src: &mut MappedSource, parent_anim_id: u32, add: &AddTransitio
         let old = parent_anim.trans.insert(tran_id, tran);
         if old.is_some() {
             bail!(
-                "anim `{}` already has trans to `{}`",
+                "anim `{}` already has tran to `{}`",
                 parent_anim_id,
                 tran_id
             );
@@ -193,7 +193,7 @@ fn on_delete_tran(
         let old = parent_anim.trans.remove(&tran_id);
         if old.is_none() {
             bail!(
-                "anim `{}` did not have a trans to `{}`",
+                "anim `{}` did not have a tran to `{}`",
                 parent_anim_id,
                 tran_id
             );
