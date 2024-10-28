@@ -37,9 +37,11 @@ enum Commands {
     /// Applies a patch to a given source file
     Patch {
         /// Source file
+        #[arg(long, short)]
         src: PathBuf,
 
         /// Patch file
+        #[arg(long, short)]
         patch: PathBuf,
     },
 }
@@ -141,7 +143,7 @@ fn on_update_anim(m_src: &mut MappedSource, update: UpdateAnimation) -> Result<(
         }
     }
 
-    todo!();
+    Ok(())
 }
 
 fn on_add_tran(m_src: &mut MappedSource, parent_anim_id: u32, add: &AddTransition) -> Result<()> {

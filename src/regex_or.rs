@@ -34,7 +34,8 @@ where
         let value = serde_yaml::Value::deserialize(deserializer)?;
         if let serde_yaml::Value::String(ref s) = value {
             if s.starts_with("/") && s.ends_with("/") {
-                let re = s.to_owned().try_into().map_err(D::Error::custom)?;
+                let re_substr = &s[1..s.len() - 1];
+                let re = re_substr.to_owned().try_into().map_err(D::Error::custom)?;
                 return Ok(RegexOr::Regex(re));
             }
         }

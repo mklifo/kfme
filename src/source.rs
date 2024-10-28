@@ -199,7 +199,7 @@ impl Encode for SourceFileBody {
 
         writer
             .write_value::<_, O>(&self.default_trans)
-            .context("write `default_trains`")?;
+            .context("write `default_trans`")?;
 
         writer
             .write_value::<_, O>(self.anims.as_slice())
