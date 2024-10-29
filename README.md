@@ -1,4 +1,4 @@
-[![CI](https://github.com/mklifo/kfme/actions/workflows/checks.yml/badge.svg)](https://github.com/mklifo/kfme/actions/workflows/checks.yml)
+[![checks](https://github.com/mklifo/kfme/actions/workflows/checks.yml/badge.svg)](https://github.com/mklifo/kfme/actions/workflows/checks.yml)
 
 # `kfme`
 

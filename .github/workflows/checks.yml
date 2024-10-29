@@ -1,22 +1,20 @@
-name: CI
+name: checks
 
 on:
   push:
-    branches: [ "trunk" ]
+    branches: ["trunk"]
   pull_request:
-    branches: [ "trunk" ]
+    branches: ["trunk"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run
-      run: cargo test --verbose
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --verbose
+      - name: Run
+        run: cargo test --verbose
