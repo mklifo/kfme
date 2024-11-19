@@ -1,6 +1,6 @@
 [package]
 name = "kfme"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
@@ -11,3 +11,4 @@ indoc = "2.0.5"
 regex = "1.11.1"
 serde = { version = "1.0.213", features = ["derive"] }
 serde_yaml = "0.9"
+tera = "1.20.0"

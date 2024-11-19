@@ -48,7 +48,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::RegexOr;
     use regex::Regex;
     use serde_yaml;
 

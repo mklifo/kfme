@@ -1,18 +1,15 @@
-pub mod kfm;
+pub mod bin;
+pub mod header;
 pub mod patch;
 pub mod regex_or;
 pub mod source;
 
-pub use regex_or::RegexOr;
-
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use header::make_header;
 use patch::PatchFile;
-use patch::{AddAnimation, AnimationPatchBody, DeleteAnimation, UpdateAnimation};
-use patch::{AddTransition, DeleteTransition, TransitionPatchBody, UpdateTransition};
+use source::MappedSource;
 use source::SourceFile;
-use source::{MappedSource, MappedTransition};
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -23,227 +20,144 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Converts a source file's format (inferred from file extensions)
-    Convert {
-        /// Input source file
-        #[arg(long, short)]
-        input: PathBuf,
-
-        /// Output source file
-        #[arg(long, short)]
-        output: PathBuf,
-    },
-
-    /// Applies a patch to a given source file
+    /// Applies a patch to the given source file
     Patch {
-        /// Source file
         #[arg(long, short)]
         src: PathBuf,
 
-        /// Patch file
         #[arg(long, short)]
         patch: PathBuf,
+    },
+
+    /// Converts the format of a given source file
+    Convert {
+        #[arg(long, short)]
+        input: PathBuf,
+
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
+
+    /// Builds a binary and a corresponding header file from the given source file
+    Build {
+        #[arg(long, short)]
+        input: PathBuf,
+
+        #[arg(long, short)]
+        output_dir: Option<PathBuf>,
     },
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Convert { input, output } => on_convert(input, output),
         Commands::Patch { src, patch } => on_patch(src, patch),
+        Commands::Convert { input, output } => on_convert(input, output),
+        Commands::Build { input, output_dir } => on_build(input, output_dir),
     }
 }
 
-pub fn on_convert(input_path: PathBuf, output_path: PathBuf) -> Result<()> {
-    let input_file = SourceFile::load(&input_path).context("load input file")?;
-    input_file.save(output_path).context("save output file")
-}
-
-pub fn on_patch(src_path: PathBuf, patch_path: PathBuf) -> Result<()> {
+fn on_patch(src_path: PathBuf, patch_path: PathBuf) -> Result<()> {
     let src_file = SourceFile::load(&src_path).context("load source file")?;
     let patch_file = PatchFile::load(patch_path).context("load patch file")?;
 
     // Map source for more efficient edits
     let mut m_src = MappedSource::try_from(src_file.body)?;
 
-    for anim_patch in patch_file.anims.into_iter() {
-        match anim_patch.body {
-            AnimationPatchBody::Add(a) => on_add_anim(&mut m_src, a)?,
-            AnimationPatchBody::Delete(d) => on_delete_anim(&mut m_src, d)?,
-            AnimationPatchBody::Update(u) => on_update_anim(&mut m_src, u)?,
-        }
-    }
+    // Apply patch
+    patch::apply(&mut m_src, patch_file).context("apply patch")?;
 
-    // Unmap then save source
+    // Unmap source to embed in file
     let new_src_file = SourceFile {
         header: src_file.header,
         body: m_src.into(),
     };
+
+    // Save source file
     new_src_file.save(src_path).context("save source file")?;
 
     Ok(())
 }
 
-fn on_add_anim(m_src: &mut MappedSource, add: AddAnimation) -> Result<()> {
-    let (m_id, m_anim) = add.try_into().context("map anim")?;
+fn on_convert(input_path: PathBuf, maybe_output_path: Option<PathBuf>) -> Result<()> {
+    let input_file = SourceFile::load(&input_path).context("load input file")?;
+    let output_file = input_file;
 
-    // If an animation of the same id already existed, fail
-    let old = m_src.anims.insert(m_id, m_anim);
-    if old.is_some() {
-        bail!("anim `{}` already exists", m_id);
-    }
+    // Determine the output file path.
+    // If a path is provided, use it; otherwise, derive it from the input file path.
+    let output_file_path = match maybe_output_path {
+        Some(p) => p,
+        None => {
+            let mut p = input_path.clone();
+            let p_old_ext = p
+                .extension()
+                .and_then(|s| s.to_str())
+                .context("extension unreadable")?;
+            let p_new_ext = match p_old_ext {
+                "yaml" | "yml" => "kfm",
+                "kfm" => "yaml",
+                _ => bail!("unsupported extension"),
+            };
+            p.set_extension(p_new_ext);
+            p
+        }
+    };
 
-    Ok(())
+    // Save source file
+    output_file
+        .save(output_file_path)
+        .context("save output file")
 }
 
-fn on_delete_anim(m_src: &mut MappedSource, delete: DeleteAnimation) -> Result<()> {
-    let all_ids = m_src.anims.keys().cloned();
-    let delete_ids: HashSet<_> = collect_matching_ids(all_ids, delete.id);
+fn on_build(input_path: PathBuf, maybe_output_dir_path: Option<PathBuf>) -> Result<()> {
+    let input_file = SourceFile::load(&input_path).context("load input file")?;
 
-    // Delete matching animations
-    m_src.anims.retain(|id, _| !delete_ids.contains(id));
+    let output_src_file_stem = input_path
+        .file_stem()
+        .context("file stem")?
+        .to_string_lossy()
+        .to_string();
 
-    // Delete transitions to matching animations
-    for anim in m_src.anims.values_mut() {
-        anim.trans.retain(|id, _| !delete_ids.contains(id));
-    }
-
-    Ok(())
-}
-
-fn on_update_anim(m_src: &mut MappedSource, update: UpdateAnimation) -> Result<()> {
-    let all_ids = m_src.anims.keys().cloned();
-    let update_ids: HashSet<_> = collect_matching_ids(all_ids, update.id);
-
-    for update_id in update_ids.iter() {
-        let anim = match m_src.anims.get_mut(update_id) {
-            Some(a) => a,
-            None => bail!("get anim `{}`", update_id),
-        };
-
-        // Update animation path
-        if let Some(path) = &update.path {
-            anim.path = path.clone();
-        }
-
-        // Update animation index
-        if let Some(index) = update.index {
-            anim.index = index;
-        }
-
-        // Update animation transitions
-        if let Some(trans) = &update.trans {
-            for tran in trans.iter() {
-                match &tran.body {
-                    TransitionPatchBody::Add(a) => on_add_tran(m_src, *update_id, a)?,
-                    TransitionPatchBody::Delete(d) => on_delete_tran(m_src, *update_id, d)?,
-                    TransitionPatchBody::Update(u) => on_update_tran(m_src, *update_id, u)?,
-                }
+    // Determine the output directory path.
+    // If a path is provided, use it; otherwise, derive it from the input file path.
+    let output_dir_path = match maybe_output_dir_path {
+        Some(p) => {
+            if !p.is_dir() {
+                bail!("path `{:?}` is not a directory", p);
+            } else {
+                p
             }
         }
-    }
-
-    Ok(())
-}
-
-fn on_add_tran(m_src: &mut MappedSource, parent_anim_id: u32, add: &AddTransition) -> Result<()> {
-    // Find all transition ids to add to the parent animation
-    let all_anim_ids = m_src.anims.keys().cloned();
-    let add_tran_ids: HashSet<_> = collect_matching_ids(all_anim_ids, add.id.clone());
-
-    let parent_anim = match m_src.anims.get_mut(&parent_anim_id) {
-        Some(a) => a,
-        None => bail!("get parent anim `{}`", parent_anim_id),
+        None => input_path
+            .ancestors()
+            .nth(1)
+            .unwrap_or(&input_path)
+            .to_path_buf(),
     };
 
-    for tran_id in add_tran_ids.into_iter() {
-        let tran = MappedTransition {
-            type_: add.type_,
-            ext: add.ext.clone(),
-        };
+    // Make binary source file.
+    let output_src_file = input_file;
 
-        // Add transition to parent animation
-        let old = parent_anim.trans.insert(tran_id, tran);
-        if old.is_some() {
-            bail!(
-                "anim `{}` already has tran to `{}`",
-                parent_anim_id,
-                tran_id
-            );
-        }
-    }
+    // Make binary source file path.
+    let mut output_src_path = output_dir_path.join(&output_src_file_stem);
+    output_src_path.set_extension("kfm");
 
-    Ok(())
-}
+    // Save binary source file.
+    output_src_file
+        .save(output_src_path)
+        .context("save output src file")?;
 
-fn on_delete_tran(
-    m_src: &mut MappedSource,
-    parent_anim_id: u32,
-    delete: &DeleteTransition,
-) -> Result<()> {
-    let parent_anim = match m_src.anims.get_mut(&parent_anim_id) {
-        Some(a) => a,
-        None => bail!("get parent anim `{}`", parent_anim_id),
-    };
+    // Make header file contents.
+    let output_header_file_contents =
+        make_header(&output_src_file_stem, &output_src_file.body.anims)?;
 
-    // Find all transition ids to remove from the parent animation
-    let all_tran_ids = parent_anim.trans.keys().cloned();
-    let delete_tran_ids: HashSet<_> = collect_matching_ids(all_tran_ids, delete.id.clone());
+    // Make header file path.
+    let mut output_header_file_path = output_dir_path.join(&output_src_file_stem);
+    output_header_file_path.set_extension("h");
 
-    for tran_id in delete_tran_ids.into_iter() {
-        // Remove transition from parent animation
-        let old = parent_anim.trans.remove(&tran_id);
-        if old.is_none() {
-            bail!(
-                "anim `{}` did not have a tran to `{}`",
-                parent_anim_id,
-                tran_id
-            );
-        }
-    }
+    // Save header file.
+    std::fs::write(output_header_file_path, output_header_file_contents)
+        .context("write output header file")?;
 
     Ok(())
-}
-
-fn on_update_tran(
-    m_src: &mut MappedSource,
-    parent_anim_id: u32,
-    update: &UpdateTransition,
-) -> Result<()> {
-    let parent_anim = match m_src.anims.get_mut(&parent_anim_id) {
-        Some(a) => a,
-        None => bail!("get parent anim `{}`", parent_anim_id),
-    };
-
-    // Find all transition ids to update from the parent animation
-    let all_tran_ids = parent_anim.trans.keys().cloned();
-    let update_tran_ids: HashSet<_> = collect_matching_ids(all_tran_ids, update.id.clone());
-
-    for tran_id in update_tran_ids.into_iter() {
-        let tran = match parent_anim.trans.get_mut(&tran_id) {
-            Some(t) => t,
-            None => bail!("get tran `{}`", tran_id),
-        };
-
-        // Update transition type of parent animation
-        if let Some(type_) = update.type_ {
-            tran.type_ = type_;
-        }
-
-        // Update transition ext of parent animation
-        tran.ext = update.ext.clone();
-    }
-
-    Ok(())
-}
-
-fn collect_matching_ids<I, T>(iter: I, value: RegexOr<u32>) -> T
-where
-    I: Iterator<Item = u32>,
-    T: FromIterator<u32>,
-{
-    match value {
-        RegexOr::Regex(re) => iter.filter(|i| re.is_match(&i.to_string())).collect(),
-        RegexOr::Other(o) => iter.filter(|i| *i == o).collect(),
-    }
 }

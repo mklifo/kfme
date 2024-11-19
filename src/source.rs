@@ -1,5 +1,5 @@
-use super::kfm::{Decode, ReadValueExt};
-use super::kfm::{Encode, WriteValueExt};
+use super::bin::{Decode, ReadValueExt};
+use super::bin::{Encode, WriteValueExt};
 use anyhow::{bail, Context, Error, Result};
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ impl SourceFile {
         match extension {
             "kfm" => Self::from_kfm_reader(reader),
             "yaml" | "yml" => Self::from_yaml_reader(reader),
-            _ => bail!("unknown extension"),
+            _ => bail!("unsupported extension"),
         }
     }
 
@@ -62,7 +62,7 @@ impl SourceFile {
         match extension {
             "kfm" => self.to_kfm_writer(writer),
             "yaml" | "yml" => self.to_yaml_writer(writer),
-            _ => bail!("unknown extension"),
+            _ => bail!("unsupported extension"),
         }
     }
 
@@ -111,11 +111,11 @@ impl SourceFile {
 
         if self.header.is_little_endian {
             self.body
-                .encode_kfm::<_, LittleEndian>(&mut writer)
+                .encode::<_, LittleEndian>(&mut writer)
                 .context("encode body")?;
         } else {
             self.body
-                .encode_kfm::<_, BigEndian>(&mut writer)
+                .encode::<_, BigEndian>(&mut writer)
                 .context("encode body")?;
         }
 
@@ -188,7 +188,7 @@ pub struct SourceFileBody {
 }
 
 impl Encode for SourceFileBody {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -214,7 +214,7 @@ impl Encode for SourceFileBody {
 }
 
 impl Decode for SourceFileBody {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -249,7 +249,7 @@ pub struct Model {
 }
 
 impl Encode for Model {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -267,7 +267,7 @@ impl Encode for Model {
 }
 
 impl Decode for Model {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -288,7 +288,7 @@ pub struct DefaultTransitions {
 }
 
 impl Encode for DefaultTransitions {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -314,7 +314,7 @@ impl Encode for DefaultTransitions {
 }
 
 impl Decode for DefaultTransitions {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -347,7 +347,7 @@ pub struct Animation {
 }
 
 impl Encode for Animation {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -369,7 +369,7 @@ impl Encode for Animation {
 }
 
 impl Decode for Animation {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -402,7 +402,7 @@ pub struct Transition {
 }
 
 impl Encode for Transition {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -422,7 +422,7 @@ impl Encode for Transition {
 }
 
 impl Decode for Transition {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -458,7 +458,7 @@ pub enum TransitionType {
 }
 
 impl Encode for TransitionType {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -481,7 +481,7 @@ impl Encode for TransitionType {
 }
 
 impl Decode for TransitionType {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -510,7 +510,7 @@ pub struct TransitionExt {
 }
 
 impl Encode for TransitionExt {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -532,7 +532,7 @@ impl Encode for TransitionExt {
 }
 
 impl Decode for TransitionExt {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -566,7 +566,7 @@ pub struct Layer {
 }
 
 impl Encode for Layer {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -598,7 +598,7 @@ impl Encode for Layer {
 }
 
 impl Decode for Layer {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -629,7 +629,7 @@ pub struct LayerGroup {
 }
 
 impl Decode for LayerGroup {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -647,7 +647,7 @@ impl Decode for LayerGroup {
 }
 
 impl Encode for LayerGroup {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -673,7 +673,7 @@ pub struct IntermediateAnimation {
 }
 
 impl Encode for IntermediateAnimation {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -691,7 +691,7 @@ impl Encode for IntermediateAnimation {
 }
 
 impl Decode for IntermediateAnimation {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -713,7 +713,7 @@ pub struct ChainAnimation {
 }
 
 impl Encode for ChainAnimation {
-    fn encode_kfm<W, O>(&self, writer: &mut W) -> Result<()>
+    fn encode<W, O>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
         O: ByteOrder,
@@ -729,7 +729,7 @@ impl Encode for ChainAnimation {
 }
 
 impl Decode for ChainAnimation {
-    fn decode_kfm<R, O>(reader: &mut R) -> Result<Self>
+    fn decode<R, O>(reader: &mut R) -> Result<Self>
     where
         R: Read,
         O: ByteOrder,
@@ -741,6 +741,7 @@ impl Decode for ChainAnimation {
     }
 }
 
+#[derive(Debug)]
 pub struct MappedSource {
     pub model: Model,
     pub default_trans: DefaultTransitions,
@@ -783,6 +784,7 @@ impl From<MappedSource> for SourceFileBody {
     }
 }
 
+#[derive(Debug)]
 pub struct MappedAnimation {
     pub path: String,
     pub index: u32,
@@ -831,6 +833,7 @@ impl From<(u32, MappedAnimation)> for Animation {
     }
 }
 
+#[derive(Debug)]
 pub struct MappedTransition {
     pub type_: TransitionType,
     pub ext: Option<TransitionExt>,
