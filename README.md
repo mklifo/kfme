@@ -27,13 +27,13 @@ To add a new animation, specify its attributes in an `add` action.
 
 ```yaml
 anims:
-  - add:
-      id: 20
-      path: path/to/file.kf
-      index: 0
-      trans:
-        - id: /.*/
-          type: default_non_sync
+- add:
+    id: 20
+    path: path/to/file.kf
+    index: 0
+    trans:
+    - id: /.*/
+      type: default_non_sync
 ```
 
 ### Deleting Animations
@@ -42,8 +42,8 @@ To delete an animation, specify its `id` in a `delete` action.
 
 ```yaml
 anims:
-  - delete:
-      id: 19
+- delete:
+    id: 19
 ```
 
 ### Updating Animations
@@ -52,15 +52,15 @@ To modify an existing animation, use an `update` action and specify only its upd
 
 ```yaml
 anims:
-  - update:
-      id: 10
-      index: 1
-      trans:
-        - delete:
-            id: /.*/
-        - add:
-            id: 9
-            type: chain_animation
+- update:
+    id: 10
+    index: 1
+    trans:
+    - delete:
+        id: /.*/
+    - add:
+        id: 9
+        type: chain_animation
 ```
 
 ### Nested Actions
@@ -72,11 +72,11 @@ anims:
 - update:
     id: 10
     trans:
-      - delete:
-          id: /.*/
-      - add:
-          id: 9
-          type: chain_animation
+    - delete:
+        id: /.*/
+    - add:
+        id: 9
+        type: chain_animation
 ```
 
 ### Combining Actions
